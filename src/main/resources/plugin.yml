@@ -54,4 +54,3 @@ commands:
 permissions:
   plasma.admin:
     default: op
-    
