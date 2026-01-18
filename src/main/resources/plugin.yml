@@ -1,0 +1,57 @@
+name: PlasmaCore
+main: com.plasma.core.PlasmaCore
+version: 1.0.0
+api-version: '1.21'
+author: Plasma
+commands:
+  register:
+    usage: /register <password>
+    description: Register account
+  login:
+    usage: /login <password>
+    description: Login to account
+  balance:
+    usage: /balance
+    description: Show your balance
+  pay:
+    usage: /pay <player> <amount>
+    description: Pay another player
+  sethome:
+    usage: /sethome [name]
+    description: Set a home
+  home:
+    usage: /home [name]
+    description: Navigate to a home
+  tpa:
+    usage: /tpa <player>
+    description: Request navigation to player
+  tpaccept:
+    usage: /tpaccept
+    description: Accept a navigation request
+  spawn:
+    usage: /spawn
+    description: Navigate to spawn
+  setspawn:
+    usage: /setspawn
+    description: Set spawn
+    permission: plasma.admin
+  ban:
+    usage: /ban <player> <reason>
+    description: Ban player
+    permission: plasma.admin
+  mute:
+    usage: /mute <player> <reason>
+    description: Mute player
+    permission: plasma.admin
+  kick:
+    usage: /kick <player> <reason>
+    description: Kick player
+    permission: plasma.admin
+  plasmareload:
+    usage: /plasmareload
+    description: Reload config
+    permission: plasma.admin
+permissions:
+  plasma.admin:
+    default: op
+    
