@@ -190,6 +190,7 @@ public class PlasmaCore extends JavaPlugin implements Listener, CommandExecutor,
         registerCommands();
         
         // Запуск периодических задач
+    // Запуск периодических задач
         startScheduledTasks();
         
         getLogger().info("╔══════════════════════════════════════════╗");
@@ -199,6 +200,256 @@ public class PlasmaCore extends JavaPlugin implements Listener, CommandExecutor,
         getLogger().info("║  Проектов: " + String.format("%-28d", projectCache.size()) + "║");
         getLogger().info("║  Лавок: " + String.format("%-31d", shopCache.size()) + "║");
         getLogger().info("╚══════════════════════════════════════════╝");
+    }
+    
+    // ══════════════════════════════════════════════════════════════════
+    // ПЕРИОДИЧЕСКИЕ ЗАДАЧИ
+    // ══════════════════════════════════════════════════════════════════
+    
+    private void startScheduledTasks() {
+        // Обновление стены памяти каждые 7 дней
+        scheduler.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                Bukkit.getScheduler().runTask(PlasmaCore.this, new Runnable() {
+                    @Override
+                    public void run() {
+                        doUpdateMemoryWall();
+                    }
+                });
+            }
+        }, 1, 7 * 24, TimeUnit.HOURS);
+        
+        // Бродячие лавки каждые 2 часа
+        scheduler.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                Bukkit.getScheduler().runTask(PlasmaCore.this, new Runnable() {
+                    @Override
+                    public void run() {
+                        doSpawnWanderingShop();
+                    }
+                });
+            }
+        }, 30, 120, TimeUnit.MINUTES);
+        
+        // Проверка истекших делегаций каждый час
+        scheduler.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                long now = System.currentTimeMillis();
+                currentDelegates.removeIf(d -> d.termEndsAt < now);
+            }
+        }, 1, 1, TimeUnit.HOURS);
+        
+        // Обновление скорбордов каждые 30 секунд
+        Bukkit.getScheduler().runTaskTimer(this, new Runnable() {
+            @Override
+            public void run() {
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    updatePlayerScoreboard(p);
+                }
+            }
+        }, 100L, 600L);
+    }
+    
+    private void doUpdateMemoryWall() {
+        World gallery = Bukkit.getWorld(WORLD_GALLERY);
+        if (gallery == null) return;
+        
+        asyncExecutor.submit(new Runnable() {
+            @Override
+            public void run() {
+                try (PreparedStatement ps = database.prepareStatement(
+                        "SELECT * FROM chat_messages WHERE added_to_wall = 0 ORDER BY sent_at ASC LIMIT 100")) {
+                    ResultSet rs = ps.executeQuery();
+                    
+                    List<ChatMessage> newMessages = new ArrayList<>();
+                    while (rs.next()) {
+                        ChatMessage cm = new ChatMessage();
+                        cm.id = rs.getInt("id");
+                        cm.playerName = rs.getString("player_name");
+                        cm.message = rs.getString("message");
+                        cm.sentAt = rs.getLong("sent_at");
+                        newMessages.add(cm);
+                    }
+                    
+                    if (!newMessages.isEmpty()) {
+                        int height = getWallHeight();
+                        final List<ChatMessage> msgs = newMessages;
+                        Bukkit.getScheduler().runTask(PlasmaCore.this, new Runnable() {
+                            @Override
+                            public void run() {
+                                putMessagesOnWall(gallery, msgs, height);
+                            }
+                        });
+                    }
+                } catch (SQLException e) {
+                    getLogger().log(Level.WARNING, "Ошибка обновления стены памяти", e);
+                }
+            }
+        });
+    }
+    
+    private int getWallHeight() {
+        try (PreparedStatement ps = database.prepareStatement(
+                "SELECT MAX(wall_position_y) FROM chat_messages WHERE added_to_wall = 1")) {
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                int y = rs.getInt(1);
+                return y > 0 ? y : 65;
+            }
+        } catch (SQLException e) {}
+        return 65;
+    }
+    
+    private void putMessagesOnWall(World gallery, List<ChatMessage> messages, int startY) {
+        int wallZ = 100;
+        int wallStartX = -25;
+        int wallWidth = 50;
+        int currentY = startY + 1;
+        
+        for (ChatMessage msg : messages) {
+            String filtered = cleanMessage(msg.playerName + ": " + msg.message);
+            int x = wallStartX + (msg.id % wallWidth);
+            
+            if (currentY > 255) currentY = 66;
+            
+            gallery.getBlockAt(x, currentY, wallZ).setType(Material.SMOOTH_QUARTZ);
+            
+            Block signBlock = gallery.getBlockAt(x, currentY, wallZ - 1);
+            signBlock.setType(Material.OAK_WALL_SIGN);
+            
+            if (signBlock.getState() instanceof Sign) {
+                Sign sign = (Sign) signBlock.getState();
+                String[] lines = cutMessage(filtered, 15);
+                for (int i = 0; i < Math.min(4, lines.length); i++) {
+                    sign.getSide(Side.FRONT).line(i, Component.text(lines[i], COLOR_MUTED));
+                }
+                sign.update();
+            }
+            
+            final int finalY = currentY;
+            final int msgId = msg.id;
+            asyncExecutor.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try (PreparedStatement ps = database.prepareStatement(
+                            "UPDATE chat_messages SET added_to_wall = 1, wall_position_y = ? WHERE id = ?")) {
+                        ps.setInt(1, finalY);
+                        ps.setInt(2, msgId);
+                        ps.executeUpdate();
+                    } catch (SQLException e) {}
+                }
+            });
+            
+            currentY++;
+        }
+    }
+    
+    private String cleanMessage(String message) {
+        message = message.replaceAll("\\+?\\d{10,}", "[скрыто]");
+        message = message.replaceAll("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", "[скрыто]");
+        message = message.replaceAll("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}", "[скрыто]");
+        return message;
+    }
+    
+    private String[] cutMessage(String message, int lineLength) {
+        List<String> lines = new ArrayList<>();
+        while (message.length() > lineLength) {
+            int splitAt = message.lastIndexOf(' ', lineLength);
+            if (splitAt <= 0) splitAt = lineLength;
+            lines.add(message.substring(0, splitAt));
+            message = message.substring(splitAt).trim();
+        }
+        if (!message.isEmpty()) lines.add(message);
+        return lines.toArray(new String[0]);
+    }
+    
+    private void doSpawnWanderingShop() {
+        List<Shop> eligible = new ArrayList<>();
+        for (Shop s : shopCache.values()) {
+            if (s.level >= 2 && System.currentTimeMillis() - s.lastWandering > TimeUnit.HOURS.toMillis(12)) {
+                eligible.add(s);
+            }
+        }
+        
+        if (eligible.isEmpty()) return;
+        
+        Shop shop = eligible.get(new Random().nextInt(eligible.size()));
+        
+        List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
+        if (online.isEmpty()) return;
+        
+        Player nearPlayer = online.get(new Random().nextInt(online.size()));
+        World world = nearPlayer.getWorld();
+        
+        if (world.getName().equals(WORLD_GALLERY) || world.getName().equals(WORLD_SHOPS)) {
+            return;
+        }
+        
+        Location spawnLoc = findSafeLocation(nearPlayer.getLocation(), 30, 60);
+        if (spawnLoc == null) return;
+        
+        String ownerName = Bukkit.getOfflinePlayer(shop.ownerUuid).getName();
+        final Shop finalShop = shop;
+        
+        world.spawn(spawnLoc, Villager.class, new Consumer<Villager>() {
+            @Override
+            public void accept(Villager v) {
+                v.setAI(true);
+                v.setInvulnerable(true);
+                v.setProfession(Villager.Profession.WANDERING_TRADER);
+                v.customName(Component.text("Лавка " + ownerName, COLOR_PRIMARY)
+                    .append(Component.text(" (бродячая)", COLOR_MUTED)));
+                v.setCustomNameVisible(true);
+                
+                v.getPersistentDataContainer().set(
+                    new NamespacedKey(PlasmaCore.this, "wandering_shop"),
+                    PersistentDataType.STRING,
+                    finalShop.ownerUuid.toString()
+                );
+                
+                v.getPersistentDataContainer().set(
+                    new NamespacedKey(PlasmaCore.this, "despawn_at"),
+                    PersistentDataType.LONG,
+                    System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10)
+                );
+            }
+        });
+        
+        shop.lastWandering = System.currentTimeMillis();
+        saveShop(shop);
+        
+        Bukkit.broadcast(Component.text("  " + GLYPH_SHOP + " Бродячая лавка ", COLOR_MUTED)
+            .append(Component.text(ownerName, COLOR_PRIMARY))
+            .append(Component.text(" появилась неподалёку!", COLOR_MUTED)));
+    }
+    
+    private Location findSafeLocation(Location center, int minDist, int maxDist) {
+        Random rand = new Random();
+        World world = center.getWorld();
+        if (world == null) return null;
+        
+        for (int attempts = 0; attempts < 20; attempts++) {
+            int dx = rand.nextInt(maxDist - minDist) + minDist;
+            int dz = rand.nextInt(maxDist - minDist) + minDist;
+            if (rand.nextBoolean()) dx = -dx;
+            if (rand.nextBoolean()) dz = -dz;
+            
+            int x = center.getBlockX() + dx;
+            int z = center.getBlockZ() + dz;
+            int y = world.getHighestBlockYAt(x, z);
+            
+            Block block = world.getBlockAt(x, y, z);
+            Block above = world.getBlockAt(x, y + 1, z);
+            Block above2 = world.getBlockAt(x, y + 2, z);
+            
+            if (block.getType().isSolid() && !above.getType().isSolid() && !above2.getType().isSolid()) {
+                return new Location(world, x + 0.5, y + 1, z + 0.5);
+            }
+        }
+        return null;
     }
     
     @Override
