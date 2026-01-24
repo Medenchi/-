@@ -1,8 +1,9 @@
 name: PlasmaCore
 main: com.plasma.core.PlasmaCore
-version: 1.0.0
-api-version: '1.21'
-author: Plasma
+version: 1.0.1
+api-version: '1.20'
+authors: [Plasma]
+
 commands:
   register:
     usage: /register <password>
@@ -51,6 +52,8 @@ commands:
     usage: /plasmareload
     description: Reload config
     permission: plasma.admin
+
 permissions:
   plasma.admin:
     default: op
+    
