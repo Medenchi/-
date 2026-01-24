@@ -48,9 +48,9 @@ import java.util.UUID;
 
 public final class PlasmaCore extends org.bukkit.plugin.java.JavaPlugin implements Listener, CommandExecutor {
     private static final long SESSION_MILLIS = Duration.ofMinutes(60).toMillis();
-    private static final long START_BALANCE = 100L;
+    private static final long START_BALANCE = 1000L;
     private static final String LOGO_PLACEHOLDER = "%%";
-    private static final String LOGO_GLYPH_TOP = "ف";
+    private static final String LOGO_GLYPH_TOP = "\uC8A6";
     private static final String LOGO_GLYPH_BOTTOM = "ق";
     private Connection connection;
 
