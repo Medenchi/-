@@ -399,7 +399,7 @@ public class PlasmaCore extends JavaPlugin implements Listener, CommandExecutor,
             public void accept(Villager v) {
                 v.setAI(true);
                 v.setInvulnerable(true);
-                v.setProfession(Villager.Profession.WANDERING_TRADER);
+                v.setProfession(Villager.Profession.NONE);
                 v.customName(Component.text("Лавка " + ownerName, COLOR_PRIMARY)
                     .append(Component.text(" (бродячая)", COLOR_MUTED)));
                 v.setCustomNameVisible(true);
@@ -3202,31 +3202,7 @@ public class PlasmaCore extends JavaPlugin implements Listener, CommandExecutor,
         player.setScoreboard(sb);
     }
     
-    private void startScheduledTasks() {
-        // Обновление стены памяти каждые 7 дней
-        scheduler.scheduleAtFixedRate(() -> {
-            Bukkit.getScheduler().runTask(this, this::updateMemoryWall);
-        }, 1, 7 * 24, TimeUnit.HOURS);
-        
-        // Бродячие лавки каждые 2 часа
-        scheduler.scheduleAtFixedRate(() -> {
-            Bukkit.getScheduler().runTask(this, this::spawnWanderingShop);
-        }, 30, 120, TimeUnit.MINUTES);
-        
-        // Проверка истекших делегаций каждый час
-        scheduler.scheduleAtFixedRate(() -> {
-            long now = System.currentTimeMillis();
-            currentDelegates.removeIf(d -> d.termEndsAt < now);
-        }, 1, 1, TimeUnit.HOURS);
-        
-        // Обновление скорбордов каждые 30 секунд
-        Bukkit.getScheduler().runTaskTimer(this, () -> {
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                updatePlayerScoreboard(p);
-            }
-        }, 100, 600);
-    }
-    
+
     // ══════════════════════════════════════════════════════════════════
     // ВНУТРЕННИЕ КЛАССЫ (DATA MODELS)
     // ══════════════════════════════════════════════════════════════════
