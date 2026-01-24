@@ -1,59 +1,72 @@
 name: PlasmaCore
+version: 1.0.0
 main: com.plasma.core.PlasmaCore
-version: 1.0.1
 api-version: '1.20'
-authors: [Plasma]
+description: Социальная платформа PLASMA MC
+author: PLASMA
 
 commands:
-  register:
-    usage: /register <password>
-    description: Register account
-  login:
-    usage: /login <password>
-    description: Login to account
+  plasma:
+    description: Главная команда
+    usage: /plasma
+  
+  apply:
+    description: Подать заявку
+    usage: /apply <telegram|discord> <username>
+  
   balance:
+    description: Баланс монет
     usage: /balance
-    description: Show your balance
+    aliases: [bal, money]
+  
   pay:
-    usage: /pay <player> <amount>
-    description: Pay another player
-  sethome:
-    usage: /sethome [name]
-    description: Set a home
-  home:
-    usage: /home [name]
-    description: Navigate to a home
-  tpa:
-    usage: /tpa <player>
-    description: Request navigation to player
-  tpaccept:
-    usage: /tpaccept
-    description: Accept a navigation request
+    description: Перевод монет
+    usage: /pay <игрок> <сумма>
+  
+  project:
+    description: Управление проектами
+    usage: /project
+    aliases: [proj, p]
+  
+  shop:
+    description: Управление лавкой
+    usage: /shop
+  
+  gallery:
+    description: Галерея
+    usage: /gallery
+    aliases: [gal]
+  
+  memory:
+    description: Стена памяти
+    usage: /memory
+  
+  vote:
+    description: Голосования
+    usage: /vote
+  
+  contest:
+    description: Конкурсы
+    usage: /contest
+  
+  delegate:
+    description: Делегации
+    usage: /delegate
+    aliases: [del]
+  
+  like:
+    description: Лайк
+    usage: /like <проект>
+  
   spawn:
+    description: Вернуться
     usage: /spawn
-    description: Navigate to spawn
-  setspawn:
-    usage: /setspawn
-    description: Set spawn
-    permission: plasma.admin
-  ban:
-    usage: /ban <player> <reason>
-    description: Ban player
-    permission: plasma.admin
-  mute:
-    usage: /mute <player> <reason>
-    description: Mute player
-    permission: plasma.admin
-  kick:
-    usage: /kick <player> <reason>
-    description: Kick player
-    permission: plasma.admin
-  plasmareload:
-    usage: /plasmareload
-    description: Reload config
-    permission: plasma.admin
 
 permissions:
-  plasma.admin:
+  plasma.owner:
+    description: Владелец сервера
     default: op
-    
+  
+  plasma.player:
+    description: Игрок
+    default: true
