@@ -1,4 +1,4 @@
-package ru.plasmamc.core;
+package com.plasma.core;
 
 import com.destroystokyo.paper.event.server.AsyncTabCompleteEvent;
 import com.destroystokyo.paper.profile.PlayerProfile;
